@@ -124,7 +124,7 @@ func (jira *Jira) GetFixVersions() (releases []FixVersion, err error) {
 }
 
 // GetIssues returns issues of fixVersion specified by FixVersion
-func (jira *Jira) GetIssues(fixVersion FixVersion) ([]Issue, error) {
+func (jira *Jira) GetIssues(fixVersion FixVersion) (issues map[string]Issue, err error) {
 	var result struct {
 		Issues []Issue `json:"issues"`
 	}
@@ -136,12 +136,17 @@ func (jira *Jira) GetIssues(fixVersion FixVersion) ([]Issue, error) {
 
 	resp, err := jira.request("GET", relUrl, nil)
 	if err != nil {
-		return nil, err
+		return
 	}
 	err = json.NewDecoder(resp).Decode(&result)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	return result.Issues, nil
+	issues = make(map[string]Issue)
+	for _, issue := range result.Issues {
+		issues[issue.Key] = issue
+	}
+
+	return
 }
