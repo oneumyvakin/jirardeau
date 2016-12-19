@@ -38,6 +38,7 @@ type FixVersion struct {
 	UserStartDate   string `json:"userStartDate"`
 }
 
+// Issue holds issue data
 type Issue struct {
 	Id     string            `json:"id"`
 	Self   string            `json:"self"`
@@ -47,6 +48,7 @@ type Issue struct {
 	Names  map[string]string `json:"names"`
 }
 
+// IssueFields
 type IssueFields struct {
 	Summary     string       `json:"summary"`
 	IssueType   IssueType    `json:"issuetype"`
@@ -57,6 +59,7 @@ type IssueFields struct {
 	Comment     CommentField `json:"comment"`
 }
 
+// IssueType
 type IssueType struct {
 	Id          string `json:"id"`
 	Self        string `json:"self"`
@@ -65,6 +68,7 @@ type IssueType struct {
 	Description string `json:"description"`
 }
 
+// CommentField holds Issue Comments
 type CommentField struct {
 	StartAt    int       `json:"startAt"`
 	MaxResults int       `json:"maxResults"`
@@ -72,6 +76,7 @@ type CommentField struct {
 	Comments   []Comment `json:"comments"`
 }
 
+// Comment of Issue
 type Comment struct {
 	Id           string `json:"id"`
 	Self         string `json:"self"`
@@ -82,6 +87,7 @@ type Comment struct {
 	Updated      string `json:"updated"`
 }
 
+// Author of Issue or Comment
 type Author struct {
 	Self         string `json:"self"`
 	Active       bool   `json:"active"`
@@ -90,6 +96,7 @@ type Author struct {
 	EmailAddress string `json:"emailAddress"`
 }
 
+// Status of Issue
 type Status struct {
 	Id          string `json:"id"`
 	Self        string `json:"self"`
@@ -148,6 +155,7 @@ func (jira *Jira) request(method, relUrl string, reqBody io.Reader) (respBody io
 	return
 }
 
+// GetFixVersions returns versions of Jira.Project
 func (jira *Jira) GetFixVersions() (releases []FixVersion, err error) {
 	relUrl := fmt.Sprintf("/project/%s/versions", jira.Project)
 	resp, err := jira.request("GET", relUrl, nil)
@@ -191,7 +199,7 @@ func (jira *Jira) GetIssues(fixVersion FixVersion) (issues map[string]Issue, err
 	return
 }
 
-// GetIssue by id
+// GetIssue by id/key
 func (jira *Jira) GetIssue(id string, expand []string) (issue Issue, err error) {
 	parameters := url.Values{}
 	if expand != nil {
