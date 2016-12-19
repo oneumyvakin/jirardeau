@@ -25,10 +25,10 @@ type Jira struct {
 
 // Project holds JIRA Project
 type Project struct {
-	Id     string            `json:"id"`
-	Self   string            `json:"self"`
-	Key    string            `json:"key"`
-	Name   string `json:"name"`
+	Id   string `json:"id"`
+	Self string `json:"self"`
+	Key  string `json:"key"`
+	Name string `json:"name"`
 }
 
 // FixVersion holds JIRA Version
@@ -58,14 +58,15 @@ type Issue struct {
 
 // IssueFields
 type IssueFields struct {
-	Project     Project      `json:"project"`
-	Summary     string       `json:"summary"`
-	IssueType   IssueType    `json:"issuetype"`
-	FixVersions []FixVersion `json:"fixVersions"`
-	Status      Status       `json:"status"`
-	Created     string       `json:"created"`
-	Description string       `json:"description"`
-	Comment     CommentField `json:"comment"`
+	Project      Project      `json:"project"`
+	Summary      string       `json:"summary"`
+	IssueType    IssueType    `json:"issuetype"`
+	FixVersions  []FixVersion `json:"fixVersions"`
+	Status       Status       `json:"status"`
+	Created      string       `json:"created"`
+	Description  string       `json:"description"`
+	Comment      CommentField `json:"comment"`
+	CustomFields CustomField
 }
 
 // CustomField
@@ -242,4 +243,36 @@ func (jira *Jira) createIssue(issue Issue) (err error) {
 	}
 
 	return
+}
+
+func (fields *IssueFields) UnmarshalJSON(data []byte) (err error) {
+	cf := make(map[string]CustomField)
+
+	err = json.Unmarshal(data, &fields)
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(data, &cf)
+	if err != nil {
+		return
+	}
+
+	for key, val := range cf {
+		if strings.HasPrefix(key, "customfiled_") {
+			fields.CustomFields[key] = val["value"]
+		}
+	}
+
+	return
+}
+
+func (fields IssueFields) MarshalJSON() ([]byte, error) {
+	cf := make(map[string]CustomField)
+
+	for key, val := range fields.CustomFields {
+		cf[key]["value"] = val
+	}
+
+	return json.Marshal(cf)
 }
