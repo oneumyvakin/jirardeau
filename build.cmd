@@ -3,6 +3,7 @@ set LOCALPATH=%~dp0
 
 goimports.exe -w .
 go fmt %PKGNAME%
+rem install staticcheck from go get -u honnef.co/go/staticcheck/cmd/staticcheck
 staticcheck.exe %PKGNAME%
 go vet %PKGNAME%
 
