@@ -8,6 +8,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // Jira holds Url like https://jira.tld
@@ -36,10 +39,12 @@ type FixVersion struct {
 }
 
 type Issue struct {
-	Id     string      `json:"id"`
-	Self   string      `json:"self"`
-	Key    string      `json:"key"`
-	Fields IssueFields `json:"fields"`
+	Id     string            `json:"id"`
+	Self   string            `json:"self"`
+	Key    string            `json:"key"`
+	Fields IssueFields       `json:"fields"`
+	Expand string            `json:"expand"`
+	Names  map[string]string `json:"names"`
 }
 
 type IssueFields struct {
@@ -84,10 +89,26 @@ func (jira *Jira) request(method, relUrl string, reqBody io.Reader) (respBody io
 	req.Header.Set("content-type", "application/json")
 	req.SetBasicAuth(jira.Login, jira.Password)
 
+	var buf bytes.Buffer
 	resp, err := http.DefaultClient.Do(req)
 	if resp != nil {
 		defer resp.Body.Close()
+
+		_, err = buf.ReadFrom(resp.Body)
+		if err != nil {
+			err = fmt.Errorf("Failed to read response from JIRA request %s %s: %s", method, absUrl.String(), err)
+			jira.Log.Println(err)
+			return
+		}
+		respBody = &buf
+
+		if resp.StatusCode >= 400 {
+			err = fmt.Errorf("Failed to JIRA request %s %s with HTTP code %d: %s", method, absUrl.String(), resp.StatusCode, buf.String())
+			jira.Log.Println(err)
+			return
+		}
 	}
+
 	if err != nil {
 		err = fmt.Errorf("Failed to JIRA request %s %s: %s", method, absUrl.String(), err)
 		jira.Log.Println(err)
@@ -96,14 +117,6 @@ func (jira *Jira) request(method, relUrl string, reqBody io.Reader) (respBody io
 
 	jira.Log.Println("StatusCode:", resp.StatusCode)
 	jira.Log.Println("Headers:", resp.Header)
-	var buf bytes.Buffer
-	_, err = buf.ReadFrom(resp.Body)
-	if err != nil {
-		err = fmt.Errorf("Failed to read response from JIRA request %s %s: %s", method, absUrl.String(), err)
-		jira.Log.Println(err)
-		return
-	}
-	respBody = &buf
 
 	jira.Log.Println("DONE", method, absUrl.String())
 	return
@@ -140,12 +153,36 @@ func (jira *Jira) GetIssues(fixVersion FixVersion) (issues map[string]Issue, err
 	}
 	err = json.NewDecoder(resp).Decode(&result)
 	if err != nil {
+		err = errors.Wrap(err, "decode failed")
 		return
 	}
 
 	issues = make(map[string]Issue)
 	for _, issue := range result.Issues {
 		issues[issue.Key] = issue
+	}
+
+	return
+}
+
+// GetIssue by id
+func (jira *Jira) GetIssue(id string, expand []string) (issue Issue, err error) {
+	parameters := url.Values{}
+	if expand != nil {
+		parameters.Add("expand", strings.Join(expand, ","))
+	}
+
+	relUrl := fmt.Sprintf("/issue/%s?%s", id, parameters.Encode())
+
+	resp, err := jira.request("GET", relUrl, nil)
+	if err != nil {
+		return
+	}
+
+	err = json.NewDecoder(resp).Decode(&issue)
+	if err != nil {
+		err = errors.Wrap(err, "decode failed")
+		return
 	}
 
 	return
