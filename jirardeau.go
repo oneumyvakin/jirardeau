@@ -23,6 +23,14 @@ type Jira struct {
 	Url       string
 }
 
+// Project holds JIRA Project
+type Project struct {
+	Id     string            `json:"id"`
+	Self   string            `json:"self"`
+	Key    string            `json:"key"`
+	Name   string `json:"name"`
+}
+
 // FixVersion holds JIRA Version
 type FixVersion struct {
 	Archived        bool   `json:"archived"`
@@ -50,6 +58,7 @@ type Issue struct {
 
 // IssueFields
 type IssueFields struct {
+	Project     Project      `json:"project"`
 	Summary     string       `json:"summary"`
 	IssueType   IssueType    `json:"issuetype"`
 	FixVersions []FixVersion `json:"fixVersions"`
@@ -58,6 +67,9 @@ type IssueFields struct {
 	Description string       `json:"description"`
 	Comment     CommentField `json:"comment"`
 }
+
+// CustomField
+type CustomField map[string]string
 
 // IssueType
 type IssueType struct {
@@ -216,6 +228,16 @@ func (jira *Jira) GetIssue(id string, expand []string) (issue Issue, err error) 
 	err = json.NewDecoder(resp).Decode(&issue)
 	if err != nil {
 		err = errors.Wrap(err, "decode failed")
+		return
+	}
+
+	return
+}
+
+// CreateIssue
+func (jira *Jira) createIssue(issue Issue) (err error) {
+	_, err = jira.request("POST", "/issue", nil)
+	if err != nil {
 		return
 	}
 
