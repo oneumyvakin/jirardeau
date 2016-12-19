@@ -54,6 +54,7 @@ type IssueFields struct {
 	Status      Status       `json:"status"`
 	Created     string       `json:"created"`
 	Description string       `json:"description"`
+	Comment     CommentField `json:"comment"`
 }
 
 type IssueType struct {
@@ -62,6 +63,31 @@ type IssueType struct {
 	Name        string `json:"name"`
 	SubTask     bool   `json:"subtask"`
 	Description string `json:"description"`
+}
+
+type CommentField struct {
+	StartAt    int       `json:"startAt"`
+	MaxResults int       `json:"maxResults"`
+	Total      int       `json:"total"`
+	Comments   []Comment `json:"comments"`
+}
+
+type Comment struct {
+	Id           string `json:"id"`
+	Self         string `json:"self"`
+	Author       Author `json:"author"`
+	UpdateAuthor Author `json:"updateAuthor"`
+	Body         string `json:"body"`
+	Created      string `json:"created"`
+	Updated      string `json:"updated"`
+}
+
+type Author struct {
+	Self         string `json:"self"`
+	Active       bool   `json:"active"`
+	Name         string `json:"name"`
+	DisplayName  string `json:"displayName"`
+	EmailAddress string `json:"emailAddress"`
 }
 
 type Status struct {
