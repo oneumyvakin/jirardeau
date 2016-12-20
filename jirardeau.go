@@ -246,33 +246,44 @@ func (jira *Jira) createIssue(issue Issue) (err error) {
 }
 
 func (fields *IssueFields) UnmarshalJSON(data []byte) (err error) {
-	cf := make(map[string]CustomField)
-
-	err = json.Unmarshal(data, &fields)
+	type AliasIssueFields IssueFields
+	issueFields := AliasIssueFields{}
+	err = json.Unmarshal(data, &issueFields)
 	if err != nil {
 		return
 	}
+
+	fields.Comment = issueFields.Comment
+	fields.IssueType = issueFields.IssueType
+
+	cf := make(map[string]interface{})
 
 	err = json.Unmarshal(data, &cf)
 	if err != nil {
 		return
 	}
 
+	if fields.CustomFields == nil {
+		fields.CustomFields = make(CustomField)
+	}
+
 	for key, val := range cf {
-		if strings.HasPrefix(key, "customfiled_") {
-			fields.CustomFields[key] = val["value"]
+		if strings.HasPrefix(key, "customfield_") {
+
+			switch val.(type) {
+			case map[string]interface{}:
+				for subkey, subval := range val.(map[string]interface{}) {
+					if strings.HasPrefix(subkey, "value") {
+						switch subval.(type) {
+							case string: fields.CustomFields[key] = subval.(string)
+						}
+					}
+				}
+			case string: fields.CustomFields[key] = val.(string)
+			case nil: fields.CustomFields[key] = ""
+			}
 		}
 	}
 
 	return
-}
-
-func (fields IssueFields) MarshalJSON() ([]byte, error) {
-	cf := make(map[string]CustomField)
-
-	for key, val := range fields.CustomFields {
-		cf[key]["value"] = val
-	}
-
-	return json.Marshal(cf)
 }
