@@ -245,6 +245,18 @@ func (jira *Jira) createIssue(issue Issue) (err error) {
 	return
 }
 
+func (fields IssueFields) MarshalJSON() ([]byte, error) {
+	cf := make(map[string]CustomField)
+
+	for key, val := range fields.CustomFields {
+		subCf := make(CustomField)
+		subCf["value"] = val
+		cf[key] = subCf
+	}
+
+	return json.Marshal(cf)
+}
+
 func (fields *IssueFields) UnmarshalJSON(data []byte) (err error) {
 	type AliasIssueFields IssueFields
 	issueFields := AliasIssueFields{}
@@ -272,10 +284,10 @@ func (fields *IssueFields) UnmarshalJSON(data []byte) (err error) {
 
 			switch val.(type) {
 			case map[string]interface{}:
-				for subkey, subval := range val.(map[string]interface{}) {
-					if strings.HasPrefix(subkey, "value") {
-						switch subval.(type) {
-							case string: fields.CustomFields[key] = subval.(string)
+				for subKey, subVal := range val.(map[string]interface{}) {
+					if strings.HasPrefix(subKey, "value") {
+						switch subVal.(type) {
+							case string: fields.CustomFields[key] = subVal.(string)
 						}
 					}
 				}
