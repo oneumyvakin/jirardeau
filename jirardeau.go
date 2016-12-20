@@ -66,7 +66,7 @@ type IssueFields struct {
 	Created      string       `json:"created"`
 	Description  string       `json:"description"`
 	Comment      CommentField `json:"comment"`
-	CustomFields CustomField
+	CustomFields CustomField  `json:"-"`
 }
 
 // CustomField
@@ -235,11 +235,17 @@ func (jira *Jira) GetIssue(id string, expand []string) (issue Issue, err error) 
 	return
 }
 
-// CreateIssue
-func (jira *Jira) createIssue(issue Issue) (err error) {
-	_, err = jira.request("POST", "/issue", nil)
+// CreateIssue creates issue based on filled fields
+func (jira *Jira) CreateIssue(issue Issue) (resp io.Reader, err error) {
+	var buf bytes.Buffer
+	err = json.NewEncoder(&buf).Encode(issue)
 	if err != nil {
-		return
+		return nil, errors.Wrap(err, "failed create issue")
+	}
+
+	resp, err = jira.request("POST", "/issue", &buf)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed create issue")
 	}
 
 	return
@@ -254,7 +260,38 @@ func (fields IssueFields) MarshalJSON() ([]byte, error) {
 		cf[key] = subCf
 	}
 
-	return json.Marshal(cf)
+	bytesCf, err := json.Marshal(cf)
+	if err != nil {
+		return nil, err
+	}
+
+	type AliasIssueFields IssueFields
+	issueFields := AliasIssueFields{}
+	issueFields.Comment = fields.Comment
+	issueFields.Created = fields.Created
+	issueFields.Description = fields.Description
+	issueFields.FixVersions = fields.FixVersions
+	issueFields.IssueType = fields.IssueType
+	issueFields.Project = fields.Project
+	issueFields.Status = fields.Status
+	issueFields.Summary = fields.Summary
+
+	bytesFields, err := json.Marshal(issueFields)
+	if err != nil {
+		return nil, err
+	}
+	bytesCf = bytes.TrimSuffix(bytesCf, []byte("}"))
+	bytesFields = bytes.TrimPrefix(bytesFields, []byte("{"))
+
+	allFields := [][]byte{
+		bytesCf,
+		bytesFields,
+	}
+	allBytes := bytes.Join(allFields, []byte(","))
+	fmt.Println("START JSON")
+	fmt.Printf("%s\n", allBytes)
+	fmt.Println("STOP JSON")
+	return allBytes, nil
 }
 
 func (fields *IssueFields) UnmarshalJSON(data []byte) (err error) {
@@ -266,7 +303,13 @@ func (fields *IssueFields) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	fields.Comment = issueFields.Comment
+	fields.Created = issueFields.Created
+	fields.Description = issueFields.Description
+	fields.FixVersions = issueFields.FixVersions
 	fields.IssueType = issueFields.IssueType
+	fields.Project = issueFields.Project
+	fields.Status = issueFields.Status
+	fields.Summary = issueFields.Summary
 
 	cf := make(map[string]interface{})
 
