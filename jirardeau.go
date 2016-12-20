@@ -236,19 +236,24 @@ func (jira *Jira) GetIssue(id string, expand []string) (issue Issue, err error) 
 }
 
 // CreateIssue creates issue based on filled fields
-func (jira *Jira) CreateIssue(issue Issue) (resp io.Reader, err error) {
+func (jira *Jira) CreateIssue(issue Issue) (Issue, error) {
 	var buf bytes.Buffer
-	err = json.NewEncoder(&buf).Encode(issue)
+	err := json.NewEncoder(&buf).Encode(issue)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed create issue")
+		return Issue{}, errors.Wrap(err, "failed create issue")
 	}
 
-	resp, err = jira.request("POST", "/issue", &buf)
+	resp, err := jira.request("POST", "/issue", &buf)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed create issue")
+		return Issue{}, errors.Wrap(err, "failed create issue")
 	}
 
-	return
+	err = json.NewDecoder(resp).Decode(&issue)
+	if err != nil {
+		return Issue{}, errors.Wrap(err, "failed create issue, failed to decode response")
+	}
+
+	return issue, nil
 }
 
 func (fields IssueFields) MarshalJSON() ([]byte, error) {
@@ -265,15 +270,19 @@ func (fields IssueFields) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 
-	type AliasIssueFields IssueFields
+	type AliasIssueFields  struct {
+		Project      Project      `json:"project"`
+		Summary      string       `json:"summary"`
+		IssueType    IssueType    `json:"issuetype"`
+		FixVersions  []FixVersion `json:"fixVersions"`
+		Description  string       `json:"description"`
+	}
+
 	issueFields := AliasIssueFields{}
-	issueFields.Comment = fields.Comment
-	issueFields.Created = fields.Created
 	issueFields.Description = fields.Description
 	issueFields.FixVersions = fields.FixVersions
 	issueFields.IssueType = fields.IssueType
 	issueFields.Project = fields.Project
-	issueFields.Status = fields.Status
 	issueFields.Summary = fields.Summary
 
 	bytesFields, err := json.Marshal(issueFields)
@@ -288,9 +297,7 @@ func (fields IssueFields) MarshalJSON() ([]byte, error) {
 		bytesFields,
 	}
 	allBytes := bytes.Join(allFields, []byte(","))
-	fmt.Println("START JSON")
-	fmt.Printf("%s\n", allBytes)
-	fmt.Println("STOP JSON")
+
 	return allBytes, nil
 }
 
