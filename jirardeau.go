@@ -256,6 +256,25 @@ func (jira *Jira) CreateIssue(issue Issue) (Issue, error) {
 	return issue, nil
 }
 
+// UpdateIssue update existed issue with new fields values
+func (jira *Jira) UpdateIssue(issue Issue) (Issue, error) {
+	if issue.Key == "" {
+		return Issue{}, errors.New("failed update issue: Issue.Key is empty")
+	}
+	var buf bytes.Buffer
+	err := json.NewEncoder(&buf).Encode(issue)
+	if err != nil {
+		return Issue{}, errors.Wrap(err, "failed update issue")
+	}
+
+	_, err = jira.request("PUT", fmt.Sprintf("/issue/%s", issue.Key), &buf)
+	if err != nil {
+		return Issue{}, errors.Wrap(err, "failed update issue")
+	}
+
+	return issue, nil
+}
+
 func (fields IssueFields) MarshalJSON() ([]byte, error) {
 	cf := make(map[string]CustomField)
 
