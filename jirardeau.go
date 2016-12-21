@@ -119,6 +119,27 @@ type Status struct {
 	Description string `json:"description"`
 }
 
+// RequestCreateIssue creates issue
+type RequestCreateIssue struct {
+	Fields ModifyIssueFields       `json:"fields"`
+}
+
+// RequestCreateIssue creates issue
+type RequestUpdateIssue struct {
+	Key    string            `json:"key"`
+	Fields ModifyIssueFields       `json:"fields"`
+}
+
+// CreateIssueFields used only for creating issues
+type ModifyIssueFields struct {
+	Project      Project      `json:"project"`
+	Summary      string       `json:"summary"`
+	IssueType    IssueType    `json:"issuetype"`
+	FixVersions  []FixVersion `json:"fixVersions"`
+	Description  string       `json:"description"`
+	CustomFields CustomField  `json:"-"`
+}
+
 func (jira *Jira) request(method, relURL string, reqBody io.Reader) (respBody io.Reader, err error) {
 	absURL, err := url.Parse(jira.URL + relURL)
 	if err != nil {
@@ -149,8 +170,28 @@ func (jira *Jira) request(method, relURL string, reqBody io.Reader) (respBody io
 			return
 		}
 		respBody = &buf
-
-		if resp.StatusCode >= 400 {
+		switch {
+		case resp.StatusCode == 401:
+			err = fmt.Errorf("Failed to JIRA request %s %s with HTTP code %d: Unauthorized (401)", method, absURL.String(), resp.StatusCode)
+			jira.Log.Println(err)
+			return
+		case resp.StatusCode == 404:
+			err = fmt.Errorf("Failed to JIRA request %s %s with HTTP code %d: Wrong request", method, absURL.String(), resp.StatusCode)
+			jira.Log.Println(err)
+			return
+		case resp.StatusCode == 405:
+			err = fmt.Errorf("Failed to JIRA request %s %s with HTTP code %d: HTTP method is not allowed for the requested resource", method, absURL.String(), resp.StatusCode)
+			jira.Log.Println(err)
+			return
+		case resp.StatusCode == 415:
+			err = fmt.Errorf("Failed to JIRA request %s %s with HTTP code %d: Unsupported Media Type", method, absURL.String(), resp.StatusCode)
+			jira.Log.Println(err)
+			return
+		case resp.StatusCode == 502:
+			err = fmt.Errorf("Failed to JIRA request %s %s with HTTP code %d: Bad gateway", method, absURL.String(), resp.StatusCode)
+			jira.Log.Println(err)
+			return
+		case resp.StatusCode >= 400:
 			err = fmt.Errorf("Failed to JIRA request %s %s with HTTP code %d: %s", method, absURL.String(), resp.StatusCode, buf.String())
 			jira.Log.Println(err)
 			return
@@ -243,48 +284,55 @@ func (jira *Jira) GetIssue(id string, expand []string) (issue Issue, err error) 
 }
 
 // CreateIssue creates issue based on filled fields
-func (jira *Jira) CreateIssue(issue Issue) (Issue, error) {
+func (jira *Jira) CreateIssue(request RequestCreateIssue) (issue Issue, err error) {
 	var buf bytes.Buffer
-	err := json.NewEncoder(&buf).Encode(issue)
+	err = json.NewEncoder(&buf).Encode(request)
 	if err != nil {
-		return Issue{}, errors.Wrap(err, "failed create issue")
+		return issue, errors.Wrap(err, "failed create issue")
 	}
 
 	resp, err := jira.request("POST", "/issue", &buf)
 	if err != nil {
-		return Issue{}, errors.Wrap(err, "failed create issue")
+		return issue, errors.Wrap(err, "failed create issue")
 	}
 
 	err = json.NewDecoder(resp).Decode(&issue)
 	if err != nil {
-		return Issue{}, errors.Wrap(err, "failed create issue, failed to decode response")
+		return issue, errors.Wrap(err, "failed create issue, failed to decode response")
 	}
+
+	issue.Fields.Description = request.Fields.Description
+	issue.Fields.Project = request.Fields.Project
+	issue.Fields.Summary = request.Fields.Summary
+	issue.Fields.IssueType = request.Fields.IssueType
+	issue.Fields.FixVersions = request.Fields.FixVersions
+	issue.Fields.CustomFields = request.Fields.CustomFields
 
 	return issue, nil
 }
 
 // UpdateIssue update existed issue with new fields values
-func (jira *Jira) UpdateIssue(issue Issue) (Issue, error) {
-	if issue.Key == "" {
-		return Issue{}, errors.New("failed update issue: Issue.Key is empty")
+func (jira *Jira) UpdateIssue(request RequestUpdateIssue) (error) {
+	if request.Key == "" {
+		return errors.New("failed update issue: issue Key is empty")
 	}
 	var buf bytes.Buffer
-	err := json.NewEncoder(&buf).Encode(issue)
+	err := json.NewEncoder(&buf).Encode(request)
 	if err != nil {
-		return Issue{}, errors.Wrap(err, "failed update issue")
+		return errors.Wrap(err, "failed update issue")
 	}
 
-	_, err = jira.request("PUT", fmt.Sprintf("/issue/%s", issue.Key), &buf)
+	_, err = jira.request("PUT", fmt.Sprintf("/issue/%s", request.Key), &buf)
 	if err != nil {
-		return Issue{}, errors.Wrap(err, "failed update issue")
+		return errors.Wrap(err, "failed update issue")
 	}
 
-	return issue, nil
+	return nil
 }
 
-// MarshalJSON encapsulate CustomFields in IssueFields
+// MarshalJSON encapsulate CustomFields in CreateIssueFields
 // and handle JIRA's requirement of allowed fields for POST/PUT query
-func (fields IssueFields) MarshalJSON() ([]byte, error) {
+func (fields ModifyIssueFields) MarshalJSON() ([]byte, error) {
 	cf := make(map[string]CustomField)
 
 	for key, val := range fields.CustomFields {
@@ -339,12 +387,13 @@ func (fields *IssueFields) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	fields.Comment = issueFields.Comment
+	fields.Status = issueFields.Status
 	fields.Created = issueFields.Created
 	fields.Description = issueFields.Description
 	fields.FixVersions = issueFields.FixVersions
 	fields.IssueType = issueFields.IssueType
 	fields.Project = issueFields.Project
-	fields.Status = issueFields.Status
+
 	fields.Summary = issueFields.Summary
 
 	cf := make(map[string]interface{})
