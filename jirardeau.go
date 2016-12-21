@@ -32,6 +32,7 @@ type Project struct {
 }
 
 // FixVersion holds JIRA Version
+// Fields field used to customize issue fields
 type FixVersion struct {
 	Archived        bool   `json:"archived"`
 	ID              string `json:"id"`
@@ -44,6 +45,7 @@ type FixVersion struct {
 	StartDate       string `json:"startDate"`
 	UserReleaseDate string `json:"userReleaseDate"`
 	UserStartDate   string `json:"userStartDate"`
+	Fields          string `json:"-"`
 }
 
 // Issue holds issue data
@@ -191,7 +193,12 @@ func (jira *Jira) GetIssues(fixVersion FixVersion) (issues map[string]Issue, err
 
 	parameters := url.Values{}
 	parameters.Add("jql", fmt.Sprintf(`project = %s AND fixVersion = "%s"`, jira.Project, fixVersion.Name))
-	parameters.Add("fields", "id,key,self,summary,issuetype,status,description,created")
+	if fixVersion.Fields == "" {
+		parameters.Add("fields", "id,key,self,summary,issuetype,status,description,created")
+	} else {
+		parameters.Add("fields", fixVersion.Fields)
+	}
+
 	relURL := fmt.Sprintf("/search?%s", parameters.Encode())
 
 	resp, err := jira.request("GET", relURL, nil)
