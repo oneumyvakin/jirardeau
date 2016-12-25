@@ -218,6 +218,7 @@ func (jira *Jira) request(method, relURL string, reqBody io.Reader) (respBody io
 }
 
 // GetFixVersions returns versions of Jira.Project
+// https://docs.atlassian.com/jira/REST/6.1/#d2e3195
 func (jira *Jira) GetFixVersions() (releases []FixVersion, err error) {
 	relURL := fmt.Sprintf("/project/%s/versions", jira.Project)
 	resp, err := jira.request("GET", relURL, nil)
@@ -233,6 +234,7 @@ func (jira *Jira) GetFixVersions() (releases []FixVersion, err error) {
 }
 
 // GetIssues returns issues of fixVersion specified by FixVersion
+// https://docs.atlassian.com/jira/REST/6.1/#d2e4071
 func (jira *Jira) GetIssues(fixVersion FixVersion) (issues map[string]Issue, err error) {
 	var result struct {
 		Issues []Issue `json:"issues"`
@@ -267,6 +269,7 @@ func (jira *Jira) GetIssues(fixVersion FixVersion) (issues map[string]Issue, err
 }
 
 // GetIssue by id/key
+// https://docs.atlassian.com/jira/REST/6.1/#d2e1160
 func (jira *Jira) GetIssue(id string, expand []string) (issue Issue, err error) {
 	parameters := url.Values{}
 	if expand != nil {
@@ -290,6 +293,7 @@ func (jira *Jira) GetIssue(id string, expand []string) (issue Issue, err error) 
 }
 
 // CreateIssue creates issue based on filled fields
+// https://docs.atlassian.com/jira/REST/6.1/#d2e865
 func (jira *Jira) CreateIssue(request RequestCreateIssue) (issue Issue, err error) {
 	var buf bytes.Buffer
 	err = json.NewEncoder(&buf).Encode(request)
@@ -318,6 +322,7 @@ func (jira *Jira) CreateIssue(request RequestCreateIssue) (issue Issue, err erro
 }
 
 // UpdateIssue update existed issue with new fields values
+// https://docs.atlassian.com/jira/REST/6.1/#d2e1209
 func (jira *Jira) UpdateIssue(request RequestUpdateIssue) error {
 	if request.Key == "" {
 		return errors.New("failed update issue: issue Key is empty")
