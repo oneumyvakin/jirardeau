@@ -13,6 +13,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	IssueTypeBug      = "1"
+	IssueTypeTask     = "3"
+	IssueTypePostTask = "25"
+)
+
 // Jira holds Url like https://jira.tld
 type Jira struct {
 	Log       *log.Logger
@@ -121,13 +127,13 @@ type Status struct {
 
 // RequestCreateIssue creates issue
 type RequestCreateIssue struct {
-	Fields ModifyIssueFields       `json:"fields"`
+	Fields ModifyIssueFields `json:"fields"`
 }
 
 // RequestCreateIssue creates issue
 type RequestUpdateIssue struct {
 	Key    string            `json:"key"`
-	Fields ModifyIssueFields       `json:"fields"`
+	Fields ModifyIssueFields `json:"fields"`
 }
 
 // CreateIssueFields used only for creating issues
@@ -312,7 +318,7 @@ func (jira *Jira) CreateIssue(request RequestCreateIssue) (issue Issue, err erro
 }
 
 // UpdateIssue update existed issue with new fields values
-func (jira *Jira) UpdateIssue(request RequestUpdateIssue) (error) {
+func (jira *Jira) UpdateIssue(request RequestUpdateIssue) error {
 	if request.Key == "" {
 		return errors.New("failed update issue: issue Key is empty")
 	}
@@ -346,12 +352,12 @@ func (fields ModifyIssueFields) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 
-	type AliasIssueFields  struct {
-		Project      Project      `json:"project"`
-		Summary      string       `json:"summary"`
-		IssueType    IssueType    `json:"issuetype"`
-		FixVersions  []FixVersion `json:"fixVersions"`
-		Description  string       `json:"description"`
+	type AliasIssueFields struct {
+		Project     Project      `json:"project"`
+		Summary     string       `json:"summary"`
+		IssueType   IssueType    `json:"issuetype"`
+		FixVersions []FixVersion `json:"fixVersions"`
+		Description string       `json:"description"`
 	}
 
 	issueFields := AliasIssueFields{}
@@ -415,12 +421,15 @@ func (fields *IssueFields) UnmarshalJSON(data []byte) (err error) {
 				for subKey, subVal := range val.(map[string]interface{}) {
 					if strings.HasPrefix(subKey, "value") {
 						switch subVal.(type) {
-							case string: fields.CustomFields[key] = subVal.(string)
+						case string:
+							fields.CustomFields[key] = subVal.(string)
 						}
 					}
 				}
-			case string: fields.CustomFields[key] = val.(string)
-			case nil: fields.CustomFields[key] = ""
+			case string:
+				fields.CustomFields[key] = val.(string)
+			case nil:
+				fields.CustomFields[key] = ""
 			}
 		}
 	}
