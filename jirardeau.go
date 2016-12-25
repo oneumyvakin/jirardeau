@@ -241,7 +241,7 @@ func (jira *Jira) GetIssues(fixVersion FixVersion) (issues map[string]Issue, err
 	parameters := url.Values{}
 	parameters.Add("jql", fmt.Sprintf(`project = %s AND fixVersion = "%s"`, jira.Project, fixVersion.Name))
 	if fixVersion.Fields == "" {
-		parameters.Add("fields", "id,key,self,summary,issuetype,status,description,created")
+		parameters.Add("fields", "id,key,self,summary,issuetype,status,description,created,comment")
 	} else {
 		parameters.Add("fields", fixVersion.Fields)
 	}
