@@ -14,8 +14,55 @@ import (
 )
 
 const (
-	IssueTypeBug      = "1"
-	IssueTypeTask     = "3"
+	// IssueTypeBug holds type id
+	IssueTypeBug = "1"
+	// IssueTypeFeature holds type id
+	IssueTypeFeature = "2"
+	// IssueTypeTask holds type id
+	IssueTypeTask = "3"
+	// IssueTypeImprovement holds type id
+	IssueTypeImprovement = "4"
+	// IssueTypeSubTask holds type id
+	IssueTypeSubTask = "5"
+	// IssueTypeSpecSubTask holds type id
+	IssueTypeSpecSubTask = "6"
+	// IssueTypeDevSubTask holds type id
+	IssueTypeDevSubTask = "7"
+	// IssueTypeQaSubTask holds type id
+	IssueTypeQaSubTask = "8"
+	// IssueTypePmTask holds type id
+	IssueTypePmTask = "9"
+	// IssueTypeDevTask holds type id
+	IssueTypeDevTask = "10"
+	// IssueTypeQaTask holds type id
+	IssueTypeQaTask = "11"
+	// IssueTypeUserStory holds type id
+	IssueTypeUserStory = "12"
+	// IssueTypeDocSubTask holds type id
+	IssueTypeDocSubTask = "13"
+	// IssueTypeDocTask holds type id
+	IssueTypeDocTask = "14"
+	// IssueTypeEpic holds type id
+	IssueTypeEpic = "15"
+	// IssueTypeStory holds type id
+	IssueTypeStory = "16"
+	// IssueTypeFeatureRequest holds type id
+	IssueTypeFeatureRequest = "17"
+	// IssueTypeMetaFeature holds type id
+	IssueTypeMetaFeature = "18"
+	// IssueTypeChangeRequest holds type id
+	IssueTypeChangeRequest = "19"
+	// IssueTypeVulnerability holds type id
+	IssueTypeVulnerability = "20"
+	// IssueTypeBuildingProblem holds type id
+	IssueTypeBuildingProblem = "21"
+	// IssueTypeTechTask holds type id
+	IssueTypeTechTask = "22"
+	// IssueTypeUxStory holds type id
+	IssueTypeUxStory = "23"
+	// IssueTypeScenario holds type id
+	IssueTypeScenario = "24"
+	// IssueTypePostTask holds type id
 	IssueTypePostTask = "25"
 )
 
@@ -130,13 +177,13 @@ type RequestCreateIssue struct {
 	Fields ModifyIssueFields `json:"fields"`
 }
 
-// RequestCreateIssue creates issue
+// RequestUpdateIssue creates issue
 type RequestUpdateIssue struct {
 	Key    string            `json:"key"`
 	Fields ModifyIssueFields `json:"fields"`
 }
 
-// CreateIssueFields used only for creating issues
+// ModifyIssueFields used only for creating issues
 type ModifyIssueFields struct {
 	Project      Project      `json:"project"`
 	Summary      string       `json:"summary"`
