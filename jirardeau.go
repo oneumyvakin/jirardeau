@@ -78,10 +78,10 @@ type Jira struct {
 
 // Project holds JIRA Project
 type Project struct {
-	ID   string `json:"id"`
-	Self string `json:"self"`
-	Key  string `json:"key"`
-	Name string `json:"name"`
+	ID   string `json:"id,omitempty"`
+	Self string `json:"self,omitempty"`
+	Key  string `json:"key,omitempty"`
+	Name string `json:"name,omitempty"`
 }
 
 // FixVersion holds JIRA Version
@@ -106,17 +106,17 @@ type Issue struct {
 	ID     string            `json:"id"`
 	Self   string            `json:"self"`
 	Key    string            `json:"key"`
-	Fields IssueFields       `json:"fields"`
+	Fields *IssueFields       `json:"fields"`
 	Expand string            `json:"expand"`
 	Names  map[string]string `json:"names"`
 }
 
 // IssueFields holds default fields
 type IssueFields struct {
-	Project      Project      `json:"project"`
+	Project      *Project      `json:"project"`
 	Summary      string       `json:"summary"`
-	IssueType    IssueType    `json:"issuetype"`
-	FixVersions  []FixVersion `json:"fixVersions"`
+	IssueType    *IssueType    `json:"issuetype"`
+	FixVersions  []*FixVersion `json:"fixVersions"`
 	Status       Status       `json:"status"`
 	Created      string       `json:"created"`
 	Description  string       `json:"description"`
@@ -185,11 +185,11 @@ type RequestUpdateIssue struct {
 
 // ModifyIssueFields used only for creating issues
 type ModifyIssueFields struct {
-	Project      Project      `json:"project"`
-	Summary      string       `json:"summary"`
-	IssueType    IssueType    `json:"issuetype"`
-	FixVersions  []FixVersion `json:"fixVersions"`
-	Description  string       `json:"description"`
+	Project      *Project      `json:"project,omitempty"`
+	Summary      string       `json:"summary,omitempty"`
+	IssueType    *IssueType    `json:"issuetype,omitempty"`
+	FixVersions  []*FixVersion `json:"fixVersions,omitempty"`
+	Description  string       `json:"description,omitempty"`
 	CustomFields CustomField  `json:"-"`
 }
 
@@ -358,12 +358,14 @@ func (jira *Jira) CreateIssue(request RequestCreateIssue) (issue Issue, err erro
 		return issue, errors.Wrap(err, "failed create issue, failed to decode response")
 	}
 
-	issue.Fields.Description = request.Fields.Description
-	issue.Fields.Project = request.Fields.Project
-	issue.Fields.Summary = request.Fields.Summary
-	issue.Fields.IssueType = request.Fields.IssueType
-	issue.Fields.FixVersions = request.Fields.FixVersions
-	issue.Fields.CustomFields = request.Fields.CustomFields
+	issue.Fields = &IssueFields{
+		Description: request.Fields.Description,
+		Project: request.Fields.Project,
+		Summary: request.Fields.Summary,
+		IssueType: request.Fields.IssueType,
+		FixVersions: request.Fields.FixVersions,
+		CustomFields: request.Fields.CustomFields,
+	}
 
 	return issue, nil
 }
@@ -390,7 +392,7 @@ func (jira *Jira) UpdateIssue(request RequestUpdateIssue) error {
 
 // MarshalJSON encapsulate CustomFields in CreateIssueFields
 // and handle JIRA's requirement of allowed fields for POST/PUT query
-func (fields ModifyIssueFields) MarshalJSON() ([]byte, error) {
+func (fields ModifyIssueFields) MarshalJSON() (resultBytes []byte, err error) {
 	cf := make(map[string]CustomField)
 
 	for key, val := range fields.CustomFields {
@@ -399,17 +401,21 @@ func (fields ModifyIssueFields) MarshalJSON() ([]byte, error) {
 		cf[key] = subCf
 	}
 
-	bytesCf, err := json.Marshal(cf)
-	if err != nil {
-		return nil, err
+	var bytesCf []byte
+	if len(cf) > 0 {
+		bytesCf, err = json.Marshal(cf)
+		fmt.Println("json.Marshal(cf)", string(bytesCf), err)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	type AliasIssueFields struct {
-		Project     Project      `json:"project"`
-		Summary     string       `json:"summary"`
-		IssueType   IssueType    `json:"issuetype"`
-		FixVersions []FixVersion `json:"fixVersions"`
-		Description string       `json:"description"`
+		Project     *Project      `json:"project,omitempty"`
+		Summary     string       `json:"summary,omitempty"`
+		IssueType   *IssueType    `json:"issuetype,omitempty"`
+		FixVersions []*FixVersion `json:"fixVersions,omitempty"`
+		Description string       `json:"description,omitempty"`
 	}
 
 	issueFields := AliasIssueFields{}
@@ -423,16 +429,20 @@ func (fields ModifyIssueFields) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	bytesCf = bytes.TrimSuffix(bytesCf, []byte("}"))
-	bytesFields = bytes.TrimPrefix(bytesFields, []byte("{"))
 
-	allFields := [][]byte{
-		bytesCf,
-		bytesFields,
+	if len(bytesCf) > 0 {
+		bytesCf = bytes.TrimSuffix(bytesCf, []byte("}"))
+		bytesFields = bytes.TrimPrefix(bytesFields, []byte("{"))
+		allFields := [][]byte{
+			bytesCf,
+			bytesFields,
+		}
+		resultBytes = bytes.Join(allFields, []byte(","))
+	} else {
+		resultBytes = bytesFields
 	}
-	allBytes := bytes.Join(allFields, []byte(","))
 
-	return allBytes, nil
+	return resultBytes, nil
 }
 
 // UnmarshalJSON gather custom fields values into CustomFields
